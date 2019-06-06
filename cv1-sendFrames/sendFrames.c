@@ -1,3 +1,8 @@
+
+//------------------------------------------------
+// INCLUDES
+//------------------------------------------------
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -12,6 +17,9 @@
 #include <arpa/inet.h>
 #include <net/if.h>
 
+//------------------------------------------------
+// DEFINES
+//------------------------------------------------
 
 #define SUCCESS (0)
 #define ERROR (1)
@@ -22,6 +30,10 @@
 #define MAC_ADDR "08:00:27:dd:15:89"
 #define ETH_TYPE (0xDEAD) // :D
 #define PAYLOAD "Payload text"
+
+//-----------------------------------------------
+// STRUCTURES
+//------------------------------------------------
 
 struct ethHeader
 {
@@ -34,6 +46,10 @@ struct ethHeader
 /*
  * Program odosiela vlastne definovane ramce.
  */
+
+//------------------------------------------------
+// FUNCTIONS
+//------------------------------------------------
 
 int sendFrame(void)
 {
@@ -72,16 +88,17 @@ int sendFrame(void)
 	uint8_t ethFrame[ETHFRAME_LENGTH_WITHOUT_CRC];
 	struct ethHeader * frame = NULL;
 	memset(ethFrame, 0, ETHFRAME_LENGTH_WITHOUT_CRC);
+
 	frame = (struct ethHeader*)ethFrame;
-	memset(frame->dstMAC, 0xFF, MAC_LENGTH);
+	memset(frame->dstMAC, 0xFF, MAC_LENGTH); // dest ako broadcast
 
 	sscanf(MAC_ADDR, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-			&(frame->srcMAC[5]), // pozor na citani, ukladanie a sietovy endian (2x sa to otaca)
-			&(frame->srcMAC[4]),
-			&(frame->srcMAC[3]),
-			&(frame->srcMAC[2]),
+			&(frame->srcMAC[0]), // pozor na citani, ukladanie a sietovy endian (2x sa to otaca)
 			&(frame->srcMAC[1]),
-			&(frame->srcMAC[0]));
+			&(frame->srcMAC[2]),
+			&(frame->srcMAC[3]),
+			&(frame->srcMAC[4]),
+			&(frame->srcMAC[5]));
 
 	frame->etherType = htons(ETH_TYPE);
 	strcpy(frame->payload, PAYLOAD);
@@ -95,17 +112,18 @@ int sendFrame(void)
 	return SUCCESS;
 }
 
+//------------------------------------------------
+// MAIN
+//------------------------------------------------
+
 int main(int argc, char** argv)
 {
 	// Odosli viacero ramcov
 	for (int i = 0; i < FRAME_COUNT; i++)
 	{
 		// odosli ramec
-
+		sendFrame();
 	}
-
-
-
 
 	return SUCCESS;
 }

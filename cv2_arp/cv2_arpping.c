@@ -41,8 +41,11 @@
 #define MAC_LENGTH (6)
 
 #define IF_NAME "eth0"
-#define SRC_IP "192.168.88.236"
+#define SRC_IP "192.168.2.232"
 #define SRC_MAC "08:00:27:dd:15:89"
+
+#define REPLY_COUNT (4)
+#define REQUEST_COUNT (4)
 
 //------------------------------------------------------
 // Structures
@@ -70,12 +73,14 @@ struct arpHeader
 } __attribute__((packed)); // zabranuje zarovnaniu (optimalizacii) kompilatora
 
 
+//------------------------------------------------------
 // Functions
+//------------------------------------------------------
 
 void receiveReply(int *sock)
 {
-
 	uint8_t msgLen = sizeof(struct ethHeader) + sizeof(struct arpHeader);
+
 	uint8_t *msg = (uint8_t*)malloc(msgLen);
 	if (!msg)
 	{
@@ -83,8 +88,9 @@ void receiveReply(int *sock)
 		close(*sock);
 		exit(ERROR);
 	}
+
 	struct ethHeader *eth;
-	struct arpHeader* arp;
+	struct arpHeader *arp;
 	struct in_addr tempAddr;
 
 	int counter = 0;
@@ -98,34 +104,30 @@ void receiveReply(int *sock)
 			continue;
 		}
 
-		eth = (struct ethHdr *) msg;
+		eth = (struct ethHeader *) msg;
 
+		// kontrola, ci ide o ARP paket
 		if (eth->etherType != htons(ETH_TYPE_ARP))
 			continue;
 
 		arp = (struct arpHeader*)eth->payload;
-	//		if (arp->opCode != htons(OP_REPLY))
-	//			continue;
-	//
-	//		if (!inet_aton(SRC_IP, &tempAddr))
-	//		{
-	//			fprintf(stderr, "ERROR: inet_aton() SRC_IP\n");
-	//			continue;
-	//		}
-	//
-	//		if (arp->targetIP != tempAddr.s_addr)
-	//			continue;
+
+		// kontrola, ci ide o ARP reply OP
+		if (arp->opCode != htons(OP_REPLY))
+			continue;
 
 		// nemozem viac krat volat inet_ntoa v ramci jedneho volania (printf), musim to vopred vytiahnut
-		struct in_addr tempAddr2;
-
 		char srcIP[16];
-		tempAddr2.s_addr = arp->srcIP;
-		char* srcIPPtr = inet_ntoa(tempAddr2);
+		tempAddr.s_addr = arp->srcIP;
+		char* srcIPPtr = inet_ntoa(tempAddr);
 		strcpy(srcIP, srcIPPtr);
 
-		tempAddr2.s_addr = arp->targetIP;
-		char* targetIP = inet_ntoa(tempAddr2);
+		tempAddr.s_addr = arp->targetIP;
+		char* targetIP = inet_ntoa(tempAddr);
+
+		// kontrola, ci je to reply na moju vlastnu adresu
+		if (strcmp(targetIP, SRC_IP))
+			continue;
 
 		printf("Received: opCode:%d srcIP:%s targetIP:%s targetMAC:%hhx:%hhx:%hhx:%hhx:%hhx:%hhx\n",
 				ntohs(arp->opCode), srcIP, targetIP,
@@ -133,7 +135,7 @@ void receiveReply(int *sock)
 				arp->targetMAC[3], arp->targetMAC[4], arp->targetMAC[5]);
 
 		counter++;
-		if (counter == 4) break;
+		if (counter == REPLY_COUNT) break;
 	}
 
 	free(msg);
@@ -153,7 +155,8 @@ int main(int argc, char** argv)
 		exit(ERROR);
 	}
 
-	// prepoj socket s konkretnym sietovym rozhranim
+	// Prepojenie socketu s konkretnym sietovym rozhranim
+
 	struct sockaddr_ll addr;
 	memset(&addr, 0, sizeof(addr));
 	addr.sll_family = AF_PACKET;
@@ -172,9 +175,11 @@ int main(int argc, char** argv)
 		return ERROR;
 	}
 
+	// Alokacia miesta pre dynamicky velkost ramca (hlaviciek)
+
 	uint8_t msgLen = sizeof(struct ethHeader) + sizeof(struct arpHeader);
 
-	if (msgLen < 60)
+	if (msgLen < 60) // bez CRC (inac je minimum 64B)
 		msgLen = 60;
 
 	uint8_t *msg = (uint8_t*)malloc(msgLen);
@@ -187,19 +192,22 @@ int main(int argc, char** argv)
 
 	memset(msg, 0, msgLen);
 
-	struct ethHeader* eth = (struct ethHeader*)msg;
+	// Vytvorenie ethernet hlavicky
 
+	struct ethHeader* eth = (struct ethHeader*)msg;
 	memset(eth->dstMAC, 0xFF, HW_LEN);
 
 	sscanf(SRC_MAC, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-			&(eth->srcMAC[5]), // pozor na citani, ukladanie a sietovy endian (2x sa to otaca)
-			&(eth->srcMAC[4]),
-			&(eth->srcMAC[3]),
-			&(eth->srcMAC[2]),
+			&(eth->srcMAC[0]), // pozor na citani, ukladanie a sietovy endian (2x sa to otaca)
 			&(eth->srcMAC[1]),
-			&(eth->srcMAC[0]));
+			&(eth->srcMAC[2]),
+			&(eth->srcMAC[3]),
+			&(eth->srcMAC[4]),
+			&(eth->srcMAC[5]));
 
 	eth->etherType = htons(ETH_TYPE_ARP);
+
+	// Vytvorenie ARP hlavicky
 
 	struct arpHeader* arp = (struct arpHeader*)eth->payload;
 	arp->hwType = htons(HW_TYPE);
@@ -208,9 +216,10 @@ int main(int argc, char** argv)
 	arp->protoLen = PROTO_LEN;
 	arp->opCode = htons(OP_REQUEST);
 
-	for (int i = 5; i >= 0; i--)
+	for (int i = 5; i >= 0; i--)	// nerozumiem preco sme nedali memset, ak to nastavujmem na bcast
 		arp->srcMAC[i] = eth->dstMAC[i];
 
+	// Vytvorenie zdrojovej IP adresy do ARP hlavicky
 
 	struct in_addr tempAddr;
 	if (!inet_aton(SRC_IP, &tempAddr))
@@ -223,13 +232,15 @@ int main(int argc, char** argv)
 
 	arp->srcIP = tempAddr.s_addr;
 
+	// Zadanie cielovej IP adresy do ARP hlavicky
+
 	printf("Enter target IP address: ");
 	char readAddr[16];
 	scanf("%s", readAddr);
 
-	if (!inet_aton(SRC_IP, &tempAddr))
+	if (!inet_aton(readAddr, &tempAddr))
 	{
-		fprintf(stderr, "ERROR: inet_aton() SRC_IP\n");
+		fprintf(stderr, "ERROR: inet_aton() readAddr\n");
 		close(sock);
 		free(msg);
 		exit(ERROR);
@@ -237,7 +248,8 @@ int main(int argc, char** argv)
 
 	arp->targetIP = tempAddr.s_addr;
 
-	// Response
+	// Response vo vlakne
+
 	pthread_t threadId;
 	if (pthread_create(&threadId, NULL, (void*)&receiveReply, (void*)&sock))
 	{
@@ -247,7 +259,9 @@ int main(int argc, char** argv)
 		exit(ERROR);
 	}
 
-	for (int i = 0; i < 4; i++)
+	// Odoslanie ARP ziadosti
+
+	for (int i = 0; i < REQUEST_COUNT; i++)
 	{
 		if (write(sock, msg, msgLen) == -1)
 		{
@@ -256,7 +270,11 @@ int main(int argc, char** argv)
 			free(msg);
 			exit(ERROR);
 		}
+
+		sleep(100);
 	}
+
+	// Cakanie na dokoncenie response vlakna
 
 	pthread_join(threadId, NULL);
 

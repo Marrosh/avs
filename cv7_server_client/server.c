@@ -22,7 +22,8 @@
 int main() {
     int sock;
     struct sockaddr_in sockAddr;
-    if((sock = socket(AF_INET, SOCK_DGRAM, 0)) == -1){
+    if((sock = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
+    {
         perror("socket");
         exit(ERROR);
     }
@@ -30,7 +31,9 @@ int main() {
     memset(&sockAddr, 0, sizeof(sockAddr));
     sockAddr.sin_family = AF_INET;
     sockAddr.sin_port = htons(SRC_PORT);
-    if(inet_aton(SRC_IP, &sockAddr.sin_addr) == 0){
+
+    if(inet_aton(SRC_IP, &sockAddr.sin_addr) == 0)
+    {
         fprintf(stderr, "ERROR: inet_aton()\n");
         close(sock);
         exit(ERROR);
@@ -40,7 +43,8 @@ int main() {
      * Nastavenie Bcastu
      * */
     int sockOpt = 1; //povolenie bcast adresy
-    if((setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &sockOpt, sizeof(sockOpt))) == -1){
+    if((setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &sockOpt, sizeof(sockOpt))) == -1)
+    {
         perror("setsockopt");
         close(sock);
         exit(ERROR);
@@ -51,7 +55,9 @@ int main() {
      * */
     struct ip_mreqn multiJoin;
     memset(&multiJoin, 0, sizeof(multiJoin));
-    if(inet_aton(SRC_IP, &multiJoin.imr_multiaddr) == 0){
+
+    if(inet_aton(SRC_IP, &multiJoin.imr_multiaddr) == 0)
+    {
         fprintf(stderr, "ERROR: inet_aton()\n");
         close(sock);
         exit(ERROR);
@@ -60,7 +66,8 @@ int main() {
     multiJoin.imr_ifindex = if_nametoindex(IF_NAME);
     multiJoin.imr_address.s_addr = INADDR_ANY;
 
-    if((setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &multiJoin, sizeof(multiJoin))) == -1){
+    if((setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &multiJoin, sizeof(multiJoin))) == -1)
+    {
         perror("setsockopt");
         close(sock);
         exit(ERROR);
@@ -68,7 +75,8 @@ int main() {
 /**
  * Bind
  */
-    if(bind(sock, (struct sockaddr*)&sockAddr, sizeof(sockAddr)) == -1){
+    if(bind(sock, (struct sockaddr*)&sockAddr, sizeof(sockAddr)) == -1)
+    {
         perror("bind");
         close(sock);
         exit(ERROR);
@@ -78,7 +86,8 @@ int main() {
 /**
  * Nekonečný cyklus aby som prijmal viacero sprav
  */
-    for(;;){
+    for(;;)
+    {
         memset(buf, 0, MAX_LEN);
         memset(&sockAddr, 0, sizeof(sockAddr));
         int addrlen = sizeof(sockAddr);

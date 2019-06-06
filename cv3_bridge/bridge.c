@@ -83,20 +83,20 @@ struct EthFrame
 
 struct BTEntry* createBTEntry(void)
 {
-	struct BTEntry* E = (struct BTEntry *)malloc(sizeof(struct BTEntry));
+	struct BTEntry* entry = (struct BTEntry *)malloc(sizeof(struct BTEntry));
 
-	if (!E)
+	if (!entry)
 	{
 		fprintf(stderr, "createBTEntry(): Error allocating memory!\n");
 		return NULL;
 	}
 
-	memset(E, 0, sizeof(struct BTEntry));
-	E->previous = NULL;
-	E->next = NULL;
-	return E;
+	memset(entry, 0, sizeof(struct BTEntry));
+	entry->previous = NULL;
+	entry->next = NULL;
+	return entry;
 }
-
+//------------------------------------------------------
 struct BTEntry* insertBTEntry(struct BTEntry * head, struct BTEntry * entry)
 {
 	if (!head || !entry)
@@ -104,7 +104,7 @@ struct BTEntry* insertBTEntry(struct BTEntry * head, struct BTEntry * entry)
 		return NULL;
 	}
 
-	if (!head->next)
+	if (!head->next) //
 	{
 		head->next = entry;
 		entry->previous = head;
@@ -114,13 +114,13 @@ struct BTEntry* insertBTEntry(struct BTEntry * head, struct BTEntry * entry)
 	{
 		entry->next = head->next;
 		entry->previous = head;
+		head->next->previous = entry;
 		head->next = entry;
-		entry->next = entry;
 	}
 
 	return entry;
 }
-
+//------------------------------------------------------
 struct BTEntry* appendBTEntry(struct BTEntry * head, struct BTEntry* entry)
 {
 	if (!head || !entry)
@@ -141,7 +141,7 @@ struct BTEntry* appendBTEntry(struct BTEntry * head, struct BTEntry* entry)
 
 	return entry;
 }
-
+//------------------------------------------------------
 struct BTEntry* findBTEntry(struct BTEntry* head, struct MACAddress* mac)
 {
 	if (!head || !mac)
@@ -163,7 +163,7 @@ struct BTEntry* findBTEntry(struct BTEntry* head, struct MACAddress* mac)
 
 	return NULL;
 }
-
+//------------------------------------------------------
 struct BTEntry* ejectBTEntryByItem(struct BTEntry* head, struct BTEntry* entry)
 {
 	if (!head || !entry)
@@ -189,13 +189,13 @@ struct BTEntry* ejectBTEntryByItem(struct BTEntry* head, struct BTEntry* entry)
 
 	return NULL;
 }
-
+//------------------------------------------------------
 struct BTEntry* ejectBTEntryByMAC(struct BTEntry* head, struct MACAddress* mac)
 {
 	struct BTEntry* it = findBTEntry(head, mac);
 	return ejectBTEntryByItem(head, it);
 }
-
+//------------------------------------------------------
 void destroyBTEntry(struct BTEntry* head, struct MACAddress* mac)
 {
 	struct BTEntry* it = ejectBTEntryByMAC(head, mac);
@@ -205,7 +205,7 @@ void destroyBTEntry(struct BTEntry* head, struct MACAddress* mac)
 		free(it);
 	}
 }
-
+//------------------------------------------------------
 void printBT(struct BTEntry* head)
 {
 	if (!head)
@@ -234,7 +234,7 @@ void printBT(struct BTEntry* head)
 
 	printf("------------------------------\n");
 }
-
+//------------------------------------------------------
 struct BTEntry* flushBT(struct BTEntry* head)
 {
 	if (!head)
@@ -253,7 +253,7 @@ struct BTEntry* flushBT(struct BTEntry* head)
 
 	return head;
 }
-
+//------------------------------------------------------
 struct BTEntry* updateOrAddMACEntry(struct BTEntry* head, struct MACAddress* mac, struct IntDescriptor* port)
 {
 	if (!head || !mac || !port)
@@ -380,8 +380,6 @@ int main(int argc, char** argv)
 		fprintf(stderr, "Bridge table could not be created!\n");
 		return ERROR;
 	}
-
-
 
 	for (;;)
 	{
